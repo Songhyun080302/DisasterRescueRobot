@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>인간·로봇 구조 시뮬레이터</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <p class="eyebrow">재난 구조 로봇 심화 탐구</p>
+    <h1>어떤 조건에서 로봇이 인간보다 효과적인 구조자가 될까?</h1>
+    <p class="lead">같은 가상 재난 현장에 인간 팀, 로봇 팀, 협업 팀을 투입해 구조 인원, 구조 시각, 구조대원 피해를 비교해요. 모든 수치는 실제 측정값이 아니라 4단계에서 바꿀 수 있는 가정값으로 계산해요.</p>
+  </header>
+
+  <main>
+    <section class="step" aria-labelledby="site-title">
+      <div class="step-head">
+        <p class="step-no">1단계</p>
+        <h2 id="site-title">현장 관찰</h2>
+        <p>세 팀은 지도, 요구조자 위치, 생존 가능 시간이 같은 현장에서 동시에 출발해요.</p>
+      </div>
+
+      <div class="controls">
+        <div class="field range">
+          <label for="hazard">현장 위험도 <output id="hazardValue">75%</output></label>
+          <input id="hazard" type="range" min="0" max="100" step="5" value="75">
+        </div>
+        <div class="field range">
+          <label for="rubble">잔해 밀도 <output id="rubbleValue">40%</output></label>
+          <input id="rubble" type="range" min="0" max="100" step="5" value="40">
+        </div>
+        <div class="field seed">
+          <label for="siteSeed">현장 번호</label>
+          <input id="siteSeed" type="number" min="1" max="99999" step="1" value="2047">
+        </div>
+        <div class="button-row">
+          <button id="newSite" class="btn" type="button">새 현장</button>
+          <button id="restart" class="btn" type="button">처음부터</button>
+          <button id="playToggle" class="btn primary" type="button">재생</button>
+        </div>
+        <div class="segmented" role="group" aria-label="재생 속도">
+          <button class="seg" type="button" data-speed="0">느리게</button>
+          <button class="seg" type="button" data-speed="1">보통</button>
+          <button class="seg" type="button" data-speed="2">빠르게</button>
+        </div>
+        <div class="clock" aria-live="off">
+          <strong id="clock">T+000분</strong>
+          <span id="clockLimit">제한 240분</span>
+        </div>
+      </div>
+
+      <div class="maps">
+        <figure class="map-card">
+          <figcaption>
+            <span class="team-name"><i class="dot k-human" aria-hidden="true"></i>인간 팀</span>
+            <span class="team-comp" id="comp-human"></span>
+            <span class="team-state" id="state-human">작업 중</span>
+          </figcaption>
+          <canvas id="map-human" role="img" aria-label="인간 팀 현장 지도"></canvas>
+          <dl class="readout">
+            <div><dt>구조</dt><dd id="st-human-saved">0</dd></div>
+            <div><dt>미구조</dt><dd id="st-human-left">0</dd></div>
+            <div><dt>사람 부상</dt><dd id="st-human-hurt">0</dd></div>
+            <div><dt>로봇 고장</dt><dd id="st-human-broken">–</dd></div>
+          </dl>
+        </figure>
+        <figure class="map-card">
+          <figcaption>
+            <span class="team-name"><i class="dot square k-robot" aria-hidden="true"></i>로봇 팀</span>
+            <span class="team-comp" id="comp-robot"></span>
+            <span class="team-state" id="state-robot">작업 중</span>
+          </figcaption>
+          <canvas id="map-robot" role="img" aria-label="로봇 팀 현장 지도"></canvas>
+          <dl class="readout">
+            <div><dt>구조</dt><dd id="st-robot-saved">0</dd></div>
+            <div><dt>미구조</dt><dd id="st-robot-left">0</dd></div>
+            <div><dt>사람 부상</dt><dd id="st-robot-hurt">–</dd></div>
+            <div><dt>로봇 고장</dt><dd id="st-robot-broken">0</dd></div>
+          </dl>
+        </figure>
+        <figure class="map-card">
+          <figcaption>
+            <span class="team-name"><i class="dot k-hybrid" aria-hidden="true"></i><i class="dot square k-hybrid" aria-hidden="true"></i>협업 팀</span>
+            <span class="team-comp" id="comp-hybrid"></span>
+            <span class="team-state" id="state-hybrid">작업 중</span>
+          </figcaption>
+          <canvas id="map-hybrid" role="img" aria-label="협업 팀 현장 지도"></canvas>
+          <dl class="readout">
+            <div><dt>구조</dt><dd id="st-hybrid-saved">0</dd></div>
+            <div><dt>미구조</dt><dd id="st-hybrid-left">0</dd></div>
+            <div><dt>사람 부상</dt><dd id="st-hybrid-hurt">0</dd></div>
+            <div><dt>로봇 고장</dt><dd id="st-hybrid-broken">0</dd></div>
+          </dl>
+        </figure>
+      </div>
+
+      <ul class="map-legend" aria-label="지도 범례">
+        <li><i class="sw shape-circle"></i>사람</li>
+        <li><i class="sw shape-square"></i>로봇</li>
+        <li><i class="sw shape-base"></i>지휘소</li>
+        <li><i class="sw v-hidden"></i>미발견</li>
+        <li><i class="sw v-found"></i>발견</li>
+        <li><i class="sw v-saved">+</i>구조</li>
+        <li><i class="sw v-lost">×</i>사망</li>
+        <li><i class="sw t-rubble"></i>잔해</li>
+        <li><i class="sw t-wall"></i>벽</li>
+        <li><i class="sw t-hazard"></i>위험 구역</li>
+        <li><i class="sw t-edge"></i>사람 진입 금지선</li>
+        <li><i class="sw t-fog"></i>미수색</li>
+      </ul>
+
+      <div class="split">
+        <div class="panel">
+          <h3>누적 구조 인원</h3>
+          <div id="liveChart" class="chart"></div>
+        </div>
+        <div class="panel rules">
+          <h3>팀별 행동 규칙</h3>
+          <dl>
+            <div><dt><i class="dot k-human" aria-hidden="true"></i>인간 팀</dt><dd>구조가 빠르고 정확해요. 진입 한계를 넘는 구역에는 못 들어가고, 위험 구역에 머물면 다칠 수 있어요.</dd></div>
+            <div><dt><i class="dot square k-robot" aria-hidden="true"></i>로봇 팀</dt><dd>모든 구역에 들어가지만 잔해에서 느리고 구조 시간이 길어요. 고장 나거나 배터리를 교체하러 돌아와야 해요.</dd></div>
+            <div><dt><i class="dot k-hybrid" aria-hidden="true"></i>협업 팀</dt><dd>로봇이 먼저 수색하고 사람은 위치가 확인된 곳으로 들어가요. 사람이 못 가는 곳과 구조 대기자가 몰린 때는 로봇이 구조를 맡아요.</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="step" aria-labelledby="exp-title">
+      <div class="step-head">
+        <p class="step-no">2단계</p>
+        <h2 id="exp-title">조건 실험</h2>
+        <p>위험도 5단계와 잔해 밀도 5단계를 조합한 25개 조건을 반복 실험해요. 위험도가 오르면 위험의 세기와 범위가 함께 커져요.</p>
+      </div>
+
+      <div class="filters">
+        <div class="field">
+          <label for="repeat">조건별 반복 횟수</label>
+          <select id="repeat">
+            <option value="10">10회 (빠름)</option>
+            <option value="20" selected>20회</option>
+            <option value="50">50회 (정밀)</option>
+          </select>
+        </div>
+        <button id="runExp" class="btn primary" type="button">실험 다시 실행</button>
+        <div id="expBar" class="progress" hidden><div id="expFill"></div></div>
+        <span id="expStale" class="chip" hidden>가정값이 바뀌었어요. 다시 실행하면 반영돼요.</span>
+      </div>
+
+      <div id="expOutput" class="output">
+        <div class="verdict">
+          <div class="verdict-text">
+            <h3>이번 실험의 답</h3>
+            <p id="sumText">실험을 계산하고 있어요.</p>
+            <p id="sumExtra"></p>
+            <p class="meta" id="expMeta"></p>
+          </div>
+          <dl class="tiles">
+            <div><dt>로봇 팀이 인간 팀을 앞선 조건</dt><dd id="sumRobot">–</dd></div>
+            <div><dt>인간 팀이 로봇 팀을 앞선 조건</dt><dd id="sumHuman">–</dd></div>
+            <div><dt>협업 팀이 1위인 조건</dt><dd id="sumHybrid">–</dd></div>
+          </dl>
+        </div>
+
+        <div class="split even">
+          <div class="panel">
+            <h3>가장 많이 구조한 팀</h3>
+            <p class="panel-note">1위와 2위의 차이가 95% 신뢰구간 안에 있으면 비슷으로 표시해요.</p>
+            <div id="heatBest"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title-row">
+              <h3 id="diffCaption">로봇 팀 − 인간 팀 구조 인원 차이(명)</h3>
+              <select id="diffPair" aria-label="비교할 두 팀">
+                <option value="robot-human">로봇 − 인간</option>
+                <option value="hybrid-human">협업 − 인간</option>
+                <option value="hybrid-robot">협업 − 로봇</option>
+              </select>
+            </div>
+            <p class="panel-note">같은 현장끼리 짝지어 뺀 평균이에요. 앞선 팀의 색으로 칠해요.</p>
+            <div id="heatDiff"></div>
+          </div>
+        </div>
+
+        <div class="filters">
+          <div class="field">
+            <label for="lineRubble">그래프의 잔해 밀도</label>
+            <select id="lineRubble">
+              <option value="0">0%</option>
+              <option value="20">20%</option>
+              <option value="40" selected>40%</option>
+              <option value="60">60%</option>
+              <option value="80">80%</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="split">
+          <div class="panel">
+            <h3 id="hazardChartTitle">위험도가 오를 때 구조 인원</h3>
+            <p class="panel-note">옅은 띠는 95% 신뢰구간이에요.</p>
+            <div id="hazardChart" class="chart"></div>
+          </div>
+          <div class="panel">
+            <h3>한 판당 사람 대원 부상자</h3>
+            <p class="panel-note">협업 팀은 사람 수가 절반이에요.</p>
+            <div id="hurtChart" class="chart"></div>
+          </div>
+        </div>
+
+        <details class="table-box">
+          <summary>전체 결과 표 보기</summary>
+          <div class="table-tools">
+            <button id="copyTable" class="btn" type="button">표 복사 (엑셀용)</button>
+            <span id="copyStatus" role="status"></span>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead id="resultHead"></thead>
+              <tbody id="resultBody"></tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="step" aria-labelledby="sens-title">
+      <div class="step-head">
+        <p class="step-no">3단계</p>
+        <h2 id="sens-title">민감도 분석</h2>
+        <p>가정값 하나만 바꿔 다시 실험해요. 결론이 뒤집히는 값을 찾으면 로봇 기술이 어디까지 발전해야 하는지 말할 수 있어요.</p>
+      </div>
+
+      <div class="filters">
+        <div class="field">
+          <label for="sensParam">바꿀 가정값</label>
+          <select id="sensParam"></select>
+        </div>
+        <div class="field">
+          <label for="sensHazard">현장 위험도</label>
+          <select id="sensHazard">
+            <option value="50">50%</option>
+            <option value="75">75%</option>
+            <option value="100" selected>100%</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sensRubble">잔해 밀도</label>
+          <select id="sensRubble">
+            <option value="20">20%</option>
+            <option value="40" selected>40%</option>
+            <option value="60">60%</option>
+          </select>
+        </div>
+        <button id="runSens" class="btn primary" type="button">분석 다시 실행</button>
+        <div id="sensBar" class="progress" hidden><div id="sensFill"></div></div>
+        <span id="sensStale" class="chip" hidden>가정값이 바뀌었어요. 다시 실행하면 반영돼요.</span>
+      </div>
+
+      <div id="sensOutput" class="output">
+        <div class="panel">
+          <p class="sens-text" id="sensText">분석을 계산하고 있어요.</p>
+          <p class="panel-note" id="sensMeta"></p>
+          <div id="sensChart" class="chart"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="step" aria-labelledby="param-title">
+      <div class="step-head">
+        <p class="step-no">4단계</p>
+        <h2 id="param-title">가정값 근거 채우기</h2>
+        <p>찾은 자료에 맞춰 값을 바꾸세요. 1단계 지도는 바로 바뀌고, 2단계와 3단계는 다시 실행하면 반영돼요.</p>
+      </div>
+      <div class="filters">
+        <button id="resetParams" class="btn" type="button">기본값으로 되돌리기</button>
+        <span id="paramCount" class="meta">모두 기본값이에요.</span>
+      </div>
+      <div class="param-grid">
+        <fieldset id="params-site"><legend>현장</legend></fieldset>
+        <fieldset id="params-human"><legend><i class="dot k-human" aria-hidden="true"></i>사람 대원</legend></fieldset>
+        <fieldset id="params-robot"><legend><i class="dot square k-robot" aria-hidden="true"></i>로봇</legend></fieldset>
+      </div>
+    </section>
+
+    <section class="step" aria-labelledby="report-title">
+      <div class="step-head">
+        <p class="step-no">5단계</p>
+        <h2 id="report-title">보고서 정리</h2>
+      </div>
+      <div class="report">
+        <div>
+          <h3>변인 정리</h3>
+          <div class="table-scroll">
+            <table class="vars">
+              <tbody>
+                <tr><th scope="row">독립 변인</th><td>팀 구성(인간, 로봇, 협업), 현장 위험도, 잔해 밀도</td></tr>
+                <tr><th scope="row">종속 변인</th><td>구조 인원, 평균 구조 시각, 사람 대원 부상자, 로봇 고장 대수</td></tr>
+                <tr><th scope="row">통제 변인</th><td>지도, 요구조자 위치와 생존 가능 시간, 팀 인원, 제한 시간</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>모델의 한계</h3>
+          <ul class="plain">
+            <li>수치의 절댓값보다 조건에 따른 경향을 해석해야 해요.</li>
+            <li>로봇 혼자 사람을 구조하는 상황은 미래 기술을 가정한 설정이에요. 현재 재난 로봇은 주로 수색과 정찰을 맡아요.</li>
+            <li>구조 후 이송, 응급 처치, 통신 두절, 여진은 넣지 않았어요. 모든 대원은 찾은 위치를 즉시 공유해요.</li>
+            <li>로봇 1대와 사람 1명을 같은 인원으로 세고, 구입 비용과 운용 인력은 따지지 않았어요.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>참고 자료</h3>
+          <ul class="sources">
+            <li><a href="https://support.bostondynamics.com/articles/Knowledge/Spot-Specifications-49916" target="_blank" rel="noopener">Boston Dynamics, Spot Specifications</a><span>최대 속도 1.6 m/s, 평균 작동 시간 약 90분. 배터리 사용 시간의 근거예요.</span></li>
+            <li><a href="https://newatlas.com/darpa-drc-finals-2015-results-kaist-win/37914/?amp=true" target="_blank" rel="noopener">New Atlas, DARPA Robotics Challenge 결승 결과 (2015)</a><span>KAIST DRC-HUBO가 8개 과제 경기에서 44분 28초로 우승했고, 로봇이 넘어지는 일이 잦았어요. 로봇의 작업 속도와 고장 설정을 판단할 때 참고했어요.</span></li>
+            <li><a href="https://www.fireengineering.com/firefighting/air-management-know-your-air-consumption-rate/" target="_blank" rel="noopener">Fire Engineering, Air Management: Know Your Air-Consumption Rate</a><span>30분 정격 공기호흡기가 현장형 훈련에서 평균 12~16분 지속됐어요. 위험 구역 체력 소모의 참고 자료예요.</span></li>
+            <li><a href="https://www.wcax.com/2026/08/12/after-an-earthquake-how-long-can-trapped-people-survive/" target="_blank" rel="noopener">AP(WCAX 게재), After an earthquake, how long can trapped people survive? (2026)</a><span>대부분의 구조는 24시간 안에 이뤄지지만 생존 시간은 부상과 환경에 따라 크게 달라요. 이 모델의 3시간 평균은 사고 직후만 다루려는 단순화예요.</span></li>
+          </ul>
+          <p class="meta">이동 시간, 구조 시간, 성공률, 부상 확률은 직접 측정한 자료가 없어 정한 가정값이에요. 보고서에는 가정이라고 밝혀 주세요.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="tip" class="tip" role="status" hidden></div>
+<script src="script.js"></script>
+</body>
+</html>
